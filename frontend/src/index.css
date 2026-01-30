@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Base colors - Academic + Futuristic theme */
+    --background: 220 25% 6%;
+    --foreground: 210 40% 98%;
+
+    /* Card with glassmorphism */
+    --card: 220 20% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 220 20% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary - Deep Blue */
+    --primary: 220 90% 56%;
+    --primary-foreground: 210 40% 98%;
+    --primary-glow: 220 100% 70%;
+
+    /* Secondary - Violet */
+    --secondary: 260 85% 65%;
+    --secondary-foreground: 210 40% 98%;
+
+    /* Accent - Indigo */
+    --accent: 240 75% 60%;
+    --accent-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 22%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 220 90% 56%;
+
+    --radius: 1rem;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(220, 90%, 56%), hsl(260, 85%, 65%));
+    --gradient-secondary: linear-gradient(135deg, hsl(260, 85%, 65%), hsl(240, 75%, 60%));
+    --gradient-accent: linear-gradient(180deg, hsl(220, 25%, 8%), hsl(220, 25%, 6%));
+
+    /* Shadows with glow */
+    --shadow-glow: 0 0 40px hsl(220, 90%, 56%, 0.3);
+    --shadow-card: 0 10px 30px -10px hsl(220, 90%, 56%, 0.2);
+    
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+
+    --sidebar-background: 220 25% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 220 90% 56%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 22%;
+    --sidebar-ring: 220 90% 56%;
+  }
+
+  .dark {
+    --background: 220 25% 6%;
+    --foreground: 210 40% 98%;
+    --card: 220 20% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 220 20% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 220 90% 56%;
+    --primary-foreground: 210 40% 98%;
+    --primary-glow: 220 100% 70%;
+    --secondary: 260 85% 65%;
+    --secondary-foreground: 210 40% 98%;
+    --accent: 240 75% 60%;
+    --accent-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 22%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 220 90% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background: linear-gradient(to bottom, hsl(220, 25%, 6%), hsl(220, 25%, 4%));
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  /* Glassmorphism utilities */
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(220, 90%, 56%), hsl(260, 85%, 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(220, 90%, 56%, 0.4);
+  }
+
+  .glow-secondary {
+    box-shadow: 0 0 20px hsl(260, 85%, 65%, 0.4);
+  }
+
+  /* Hover animations */
+  .hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px -10px hsl(220, 90%, 56%, 0.4);
+  }
+}
