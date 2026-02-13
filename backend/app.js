@@ -6,9 +6,17 @@ const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
-
 const authRouter = require("./routes/auth.route.js");
-
+const userRouter = require("./routes/user.route.js");
+const roomRouter = require("./routes/studyRoom.route.js");
+const quizRouter = require("./routes/quiz.route.js");
+const forumRouter = require("./routes/forum.route.js");
+const forumCommentRouter = require("./routes/forumComments.route.js");
+const analyticsRouter = require("./routes/analytics.route.js");
+const leaderboardRouter = require("./routes/leaderboard.route.js");
+const notificationRouter = require("./routes/notification.route.js");
+const chatRouter = require("./routes/chat.route.js");
+const aiRouter = require("./routes/aiAssistant.route.js");
 
 const app = express();
 
@@ -16,7 +24,7 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
   }),
 );
@@ -39,6 +47,16 @@ if (process.env.NODE_ENV === "development") {
 
 // API Routes
 app.use("/api/auth", authRouter);
+app.use("/api/users", userRouter);
+app.use("/api/rooms", roomRouter);
+app.use("/api/quizzes", quizRouter);
+app.use("/api/forum", forumRouter);
+app.use("/api/forum", forumCommentRouter);
+app.use("/api/analytics", analyticsRouter);
+app.use("/api/leaderboard", leaderboardRouter);
+app.use("/api/notifications", notificationRouter);
+app.use("/api", chatRouter); // Chat routes include /rooms/...
+app.use("/api/ai", aiRouter);
 
 // Health check
 app.get("/health", (req, res) => {

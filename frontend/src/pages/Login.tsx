@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { Brain, Mail, Lock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,31 +9,36 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { authAPI } from "@/lib/api";
 
+import { useAuth } from "@/context/AuthContext";
+
 const Login = () => {
   const navigate = useNavigate();
+  const { login, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  try {
-    const response = await authAPI.login({ email, password });
+    try {
+      const response = await authAPI.login({ email, password });
+      await login(response.data.token);
+      toast.success("Login successful! Redirecting...");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Login failed");
+    }
+  };
 
-    localStorage.setItem("token", response.data.token);
-
-    toast.success("Login successful! Redirecting...");
-    navigate("/dashboard");
-  } catch (error: any) {
-    toast.error(error?.response?.data?.message || "Login failed");
-  }
-};
-
+    useEffect(() => {
+    if (user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10" />
-      
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

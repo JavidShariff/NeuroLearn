@@ -3,7 +3,9 @@ import { TrendingUp, Clock, Target, Award } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { mockAnalyticsData } from "@/lib/mockData";
+import { useState, useEffect } from "react";
+import { analyticsAPI } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import {
   BarChart,
   Bar,
@@ -23,24 +25,92 @@ import {
 } from "recharts";
 
 const Analytics = () => {
+  const { checkAuth } = useAuth();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuth();
+    const fetchData = async () => {
+      try {
+        const response = await analyticsAPI.getMyAnalytics();
+        setData(response.data.data);
+      } catch (error) {
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const stats = [
-    { icon: Award, label: "Total Score", value: "2,048", trend: "+12%" },
-    { icon: Target, label: "Quizzes Completed", value: "24", trend: "+8%" },
-    { icon: Clock, label: "Study Hours", value: "127", trend: "+15%" },
-    { icon: TrendingUp, label: "Avg. Performance", value: "85%", trend: "+5%" },
+    {
+      icon: Award,
+      label: "Total Score",
+      value: data?.streak?.totalScore ?? 0,
+      trend: "+0%",
+    },
+    {
+      icon: Target,
+      label: "Quizzes Completed",
+      value: data?.streak?.totalQuizzesTaken ?? 0,
+      trend: "+0%",
+    },
+    {
+      icon: Clock,
+      label: "Study Hours",
+      value: data?.analytics?.totalStudyHours
+        ? Math.round(data.analytics.totalStudyHours * 10) / 10
+        : 0,
+      trend: "+0%",
+    },
+    {
+      icon: TrendingUp,
+      label: "Avg. Performance",
+      value: `${(() => {
+        if (!data?.analytics?.quizPerformance?.length) return 0;
+        const total = data.analytics.quizPerformance.reduce(
+          (acc: number, curr: any) => acc + (curr.averageScore || 0),
+          0,
+        );
+        return Math.round(total / data.analytics.quizPerformance.length);
+      })()}%`,
+      trend: "+0%",
+    },
   ];
+
+  const masteryData = (() => {
+    const tm = data?.analytics?.topicMastery || [];
+    if (Array.isArray(tm) && tm.length > 0) return tm;
+    const qp = data?.analytics?.quizPerformance || [];
+    return qp.map((p: any) => ({
+      subject: p.topic,
+      masteryLevel: p.averageScore,
+      quizzesTaken: p.totalAttempts || p.attempts || 0,
+    }));
+  })();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      
+
       <main className="flex-1 container mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold mb-2 gradient-text">Learning Analytics</h1>
+          <h1 className="text-4xl font-bold mb-2 gradient-text">
+            Learning Analytics
+          </h1>
           <p className="text-muted-foreground">
             Track your progress and identify areas for improvement
           </p>
@@ -66,7 +136,9 @@ const Analytics = () => {
                       {stat.trend}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    {stat.label}
+                  </p>
                   <p className="text-3xl font-bold">{stat.value}</p>
                 </Card>
               </motion.div>
@@ -85,9 +157,15 @@ const Analytics = () => {
             <Card className="glass-card p-6">
               <h2 className="text-2xl font-bold mb-6">Quiz Performance</h2>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={mockAnalyticsData.quizPerformance}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="topic" stroke="hsl(var(--muted-foreground))" />
+                <BarChart data={data?.analytics?.quizPerformance || []}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                  />
+                  <XAxis
+                    dataKey="topic"
+                    stroke="hsl(var(--muted-foreground))"
+                  />
                   <YAxis stroke="hsl(var(--muted-foreground))" />
                   <Tooltip
                     contentStyle={{
@@ -96,7 +174,11 @@ const Analytics = () => {
                       borderRadius: "0.5rem",
                     }}
                   />
-                  <Bar dataKey="score" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                  <Bar
+                    dataKey="averageScore"
+                    fill="hsl(var(--primary))"
+                    radius={[8, 8, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
@@ -111,9 +193,18 @@ const Analytics = () => {
             <Card className="glass-card p-6">
               <h2 className="text-2xl font-bold mb-6">Weekly Study Time</h2>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={mockAnalyticsData.studyTime}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" />
+                <LineChart data={data?.analytics?.studyTime || []}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                  />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) =>
+                      new Date(value).toLocaleDateString()
+                    }
+                    stroke="hsl(var(--muted-foreground))"
+                  />
                   <YAxis stroke="hsl(var(--muted-foreground))" />
                   <Tooltip
                     contentStyle={{
@@ -121,6 +212,9 @@ const Analytics = () => {
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "0.5rem",
                     }}
+                    labelFormatter={(value) =>
+                      new Date(value).toLocaleDateString()
+                    }
                   />
                   <Line
                     type="monotone"
@@ -144,17 +238,35 @@ const Analytics = () => {
           <Card className="glass-card p-6">
             <h2 className="text-2xl font-bold mb-6">Topic Mastery</h2>
             <div className="flex justify-center">
-              <ResponsiveContainer width="100%" height={400}>
-                <RadarChart data={mockAnalyticsData.topicMastery}>
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart
+                  cx="50%"
+                  cy="50%"
+                  outerRadius="80%"
+                  data={masteryData}
+                >
                   <PolarGrid stroke="hsl(var(--border))" />
                   <PolarAngleAxis
                     dataKey="subject"
-                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
                   />
-                  <PolarRadiusAxis stroke="hsl(var(--muted-foreground))" />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "0.5rem",
+                    }}
+                    formatter={(value: any, name: string, props: any) => {
+                      if (name === "masteryLevel") {
+                        return [`${value}%`, "Mastery"];
+                      }
+                      return [value, name];
+                    }}
+                  />
                   <Radar
                     name="Mastery"
-                    dataKey="value"
+                    dataKey="masteryLevel"
                     stroke="hsl(var(--accent))"
                     fill="hsl(var(--accent))"
                     fillOpacity={0.5}
@@ -166,75 +278,14 @@ const Analytics = () => {
           </Card>
         </motion.div>
 
-        {/* Performance Insights */}
+        {/* Performance Insights - Placeholder or derived from data */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
           className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6"
         >
-          <Card className="glass-card p-6">
-            <h3 className="font-bold mb-3 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-500" />
-              Strengths
-            </h3>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span>Excellent at React concepts (92%)</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span>Strong database knowledge (90%)</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span>Consistent study schedule</span>
-              </li>
-            </ul>
-          </Card>
-
-          <Card className="glass-card p-6">
-            <h3 className="font-bold mb-3 flex items-center gap-2">
-              <Target className="h-5 w-5 text-yellow-500" />
-              Focus Areas
-            </h3>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                <span>Improve AI/ML concepts (65%)</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                <span>Practice more algorithms (75%)</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                <span>Join more study groups</span>
-              </li>
-            </ul>
-          </Card>
-
-          <Card className="glass-card p-6">
-            <h3 className="font-bold mb-3 flex items-center gap-2">
-              <Award className="h-5 w-5 text-primary" />
-              Achievements
-            </h3>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary" />
-                <span>7-day study streak 🔥</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary" />
-                <span>Top 10% this week</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary" />
-                <span>100 hours milestone</span>
-              </li>
-            </ul>
-          </Card>
+          {/* Insights content can be dynamic based on data if available */}
         </motion.div>
       </main>
 
