@@ -1,6 +1,5 @@
-// controllers/authController.js
-// UserStreak, UserAnalytics
-const User  = require('../models/user.model.js');
+const User = require('../models/user.model.js');
+const { UserStreak } = require('../models/userStreaks.model.js');
 const jwt = require('jsonwebtoken');
 
 // Generate JWT Token
@@ -39,8 +38,8 @@ const register = async (req, res) => {
 
     const user = await User.create({ name, email, password });
 
-    // await UserStreak.create({ user: user._id });
-    // await UserAnalytics.create({ user: user._id });
+    await UserStreak.create({ user: user._id });
+    await UserAnalytics.create({ user: user._id });
 
     createSendToken(user, 201, res);
   } catch (error) {
@@ -56,7 +55,6 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(req.body);
     if (!email || !password) {
       return res.status(400).json({
         status: 'error',
@@ -95,10 +93,15 @@ const logout = (req, res) => {
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
+    const streak = await UserStreak.findOne({ user: req.user.id });
+
+    // Merge user and streak data
+    const userData = user.toObject();
+    userData.streak = streak;
 
     res.status(200).json({
       status: 'success',
-      data: { user },
+      data: { user: userData },
     });
   } catch (error) {
     res.status(500).json({
@@ -168,7 +171,6 @@ const refreshToken = async (req, res) => {
   }
 };
 
-// ✅ Export everything properly
 module.exports = {
   register,
   login,
