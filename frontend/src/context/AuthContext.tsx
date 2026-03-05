@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (token: string) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  socket: any;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,6 +41,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
+  // ✅ Socket connection logic tied to user state
+  useEffect(() => {
+    if (user) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        import("@/lib/socket").then(({ connectSocket }) => {
+          connectSocket(token);
+        });
+      }
+    } else {
+      import("@/lib/socket").then(({ disconnectSocket }) => {
+        disconnectSocket();
+      });
+    }
+  }, [user]);
+
   // ✅ Login does NOT re-trigger auth loop
   const login = async (token: string) => {
     localStorage.setItem("token", token);
@@ -57,6 +74,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
+    import("@/lib/socket").then(({ disconnectSocket }) => {
+      disconnectSocket();
+    });
     toast.success("Logged out successfully");
   };
 

@@ -15,14 +15,20 @@ const initializeSocket = (server) => {
 
     // Middleware for authentication
     io.use((socket, next) => {
-        if (socket.handshake.query && socket.handshake.query.token) {
-            jwt.verify(socket.handshake.query.token, process.env.JWT_SECRET, (err, decoded) => {
-                if (err) return next(new Error('Authentication error'));
+        const token = socket.handshake.auth?.token;
+
+        if (token) {
+            jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+                if (err) {
+                    console.error('Socket Auth Error (JWT Verify):', err.message);
+                    return next(new Error('Authentication error: Invalid token'));
+                }
                 socket.decoded = decoded;
                 next();
             });
         } else {
-            next(new Error('Authentication error'));
+            console.warn('Socket Auth Warning: No token provided in handshake.auth');
+            next(new Error('Authentication error: Token required'));
         }
     });
 
@@ -43,10 +49,7 @@ const initializeSocket = (server) => {
 
         // Chat Message
         socket.on('send-message', async (data) => {
-            const { roomId, message, sender } = data; // Receive sender info for immediate update
-            // Save is handled by API usually, but if using pure socket:
-            // We can just broadcast. Ideally API handles DB save and frontend uses emit to notify others.
-            // But for "Real-time room chat using Socket.IO", let's broadcast.
+            const { roomId, message, sender } = data;
 
             io.to(roomId).emit('receive-message', data);
         });
