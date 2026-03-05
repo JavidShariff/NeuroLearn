@@ -25,12 +25,11 @@ import {
 } from "recharts";
 
 const Analytics = () => {
-  const { checkAuth } = useAuth();
+  const { user } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
     const fetchData = async () => {
       try {
         const response = await analyticsAPI.getMyAnalytics();

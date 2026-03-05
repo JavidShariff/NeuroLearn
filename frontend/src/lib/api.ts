@@ -1,5 +1,5 @@
 // api.ts - Frontend API Service for NeuroLearn
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -26,15 +26,21 @@ api.interceptors.request.use(
 // Response interceptor for handling errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Avoid clearing token and redirecting if we're already handling it or on login page
-      const currentPath = window.location.pathname;
-      if (currentPath !== '/auth/login' && !currentPath.includes('/login')) {
-        localStorage.removeItem('token');
-        window.location.href = '/auth/login';
-      }
+  (error: AxiosError) => {
+    // ❌ Prevent redirect loop if already on login page
+    const isAuthPage = window.location.pathname.startsWith("/auth/");
+
+    if (error.response?.status === 401 && !isAuthPage) {
+      console.warn("Unauthorized access - Redirecting to login");
+      localStorage.removeItem("token");
     }
+
+    // ⛔ Handle 429 Too Many Requests gracefully
+    if (error.response?.status === 429) {
+      console.error("Rate limit hit - Please wait before trying again.");
+      // We don't clear tokens or redirect on 429
+    }
+
     return Promise.reject(error);
   }
 );

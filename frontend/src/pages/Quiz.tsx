@@ -108,7 +108,7 @@ const Quiz = () => {
         toast.success("Quiz results saved!");
 
         // Refresh global user state (includes points and streak)
-        await checkAuth();
+        await checkAuth(true);
       }
     } catch (error) {
       console.error("Failed to submit quiz:", error);
@@ -238,8 +238,7 @@ const Quiz = () => {
                           whileTap={!isAnswered ? { scale: 0.98 } : {}}
                           onClick={() => !isAnswered && handleAnswer(index)}
                           disabled={isAnswered}
-                          className={`p-4 rounded-lg text-left transition-all ${
-                            isAnswered
+                          className={`p-4 rounded-lg text-left transition-all ${isAnswered
                               ? isSelected
                                 ? isCorrect
                                   ? "bg-green-500/20 border-2 border-green-500"
@@ -248,7 +247,7 @@ const Quiz = () => {
                                   ? "bg-green-500/20 border-2 border-green-500"
                                   : "glass-card opacity-50"
                               : "glass-card hover:bg-primary/10 cursor-pointer"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <span>{option}</span>

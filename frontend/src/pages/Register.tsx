@@ -8,9 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { authAPI } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 const Register = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,12 +21,22 @@ const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await  authAPI.register({email,password,name});
+      const response = await authAPI.register({ email, password, name });
+      const { token, data } = response.data;
+
+      // ✅ Log the user in automatically
+      await login(token, data.user);
+
       toast.success("Account created successfully!");
       setShowSuccess(true);
-      navigate("/dashboard");
-    } catch (error) {
-      toast.error("register error: ",error);
+
+      // Delay navigation to show success state
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 2000);
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast.error(error.response?.data?.message || "Registration failed");
     }
   };
 
@@ -53,7 +65,7 @@ const Register = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10" />
-      
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
