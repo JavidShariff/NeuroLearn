@@ -207,6 +207,9 @@ const RoomDetail = () => {
     return <div>Loading...</div>;
   }
 
+  console.log("Room Data:", room);
+  console.log("Messages:", messages);
+  console.log("AI Messages:", aiMessages);
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />

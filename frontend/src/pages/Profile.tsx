@@ -15,7 +15,7 @@ import {
   Star,
   Users,
   MessageSquare,
-  Clock 
+  Clock
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -133,7 +133,7 @@ const Profile = () => {
       await userAPI.updateProfile({ name, email });
       toast.success("Profile updated successfully!");
       setIsEditing(false);
-      checkAuth(); // Update global user context
+      checkAuth(true); // Update global user context immediately
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to update profile");
     }
@@ -354,15 +354,14 @@ const Profile = () => {
                         className="flex items-center gap-4 p-4 rounded-lg glass hover-lift"
                       >
                         <div
-                          className={`p-2 rounded-full ${
-                            act.type === "quiz"
+                          className={`p-2 rounded-full ${act.type === "quiz"
                               ? "bg-primary/20 text-primary"
                               : act.type === "room"
                                 ? "bg-secondary/20 text-secondary"
                                 : act.type === "study"
                                   ? "bg-accent/20 text-accent"
                                   : "bg-orange-500/20 text-orange-500"
-                          }`}
+                            }`}
                         >
                           {act.type === "quiz" && (
                             <Trophy className="h-4 w-4" />

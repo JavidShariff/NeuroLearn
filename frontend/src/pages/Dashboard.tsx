@@ -30,7 +30,7 @@ import { analyticsAPI, leaderboardAPI, userAPI } from "@/lib/api";
 import { DashboardSkeleton } from "@/components/ui/LoadingSkeleton";
 
 const Dashboard = () => {
-  const { user, isLoading: authLoading, checkAuth } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const location = useLocation();
   const [analytics, setAnalytics] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -106,8 +106,6 @@ const Dashboard = () => {
 
     if (!authLoading && user) {
       fetchData();
-      // Also refresh user data to ensure streak is up to date
-      checkAuth();
     } else if (!authLoading && !user) {
       setDataLoading(false);
     }
@@ -277,15 +275,14 @@ const Dashboard = () => {
                     >
                       <div className="flex items-center gap-4">
                         <div
-                          className={`p-2 rounded-full ${
-                            activity.type === "quiz"
+                          className={`p-2 rounded-full ${activity.type === "quiz"
                               ? "bg-primary/20 text-primary"
                               : activity.type === "room"
                                 ? "bg-secondary/20 text-secondary"
                                 : activity.type === "study"
                                   ? "bg-purple-500/20 text-purple-500"
                                   : "bg-accent/20 text-accent"
-                          }`}
+                            }`}
                         >
                           {activity.type === "quiz" && (
                             <Trophy className="h-4 w-4" />
@@ -298,8 +295,8 @@ const Dashboard = () => {
                           )}
                           {(activity.type === "post" ||
                             activity.type === "comment") && (
-                            <MessageSquare className="h-4 w-4" />
-                          )}
+                              <MessageSquare className="h-4 w-4" />
+                            )}
                         </div>
                         <div>
                           <p className="font-medium">{activity.title}</p>
