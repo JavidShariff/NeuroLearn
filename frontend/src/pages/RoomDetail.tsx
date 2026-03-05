@@ -38,6 +38,8 @@ const RoomDetail = () => {
   const [notes, setNotes] = useState("");
   const [aiQuery, setAiQuery] = useState("");
   const startTime = useRef<number>(Date.now());
+  const isIncomingUpdate = useRef(false);
+  const isInitialized = useRef(false);
 
   const [aiMessages, setAiMessages] = useState<
     { role: "user" | "system"; content: string }[]
@@ -60,8 +62,14 @@ const RoomDetail = () => {
   const fetchRoomData = async () => {
     try {
       const response = await roomAPI.getRoomById(id!);
-      setRoom(response.data.data.room);
-      setNotes(response.data.data.room.sharedNotes || "");
+      const newRoom = response.data.data.room;
+      setRoom(newRoom);
+
+      if (!isInitialized.current) {
+        isIncomingUpdate.current = true;
+        setNotes(newRoom.sharedNotes || "");
+        isInitialized.current = true;
+      }
     } catch (error) {
       toast.error("Failed to load room details");
       navigate("/rooms");
@@ -90,6 +98,7 @@ const RoomDetail = () => {
       });
 
       socket.on("notes-updated", (updatedNotes: string) => {
+        isIncomingUpdate.current = true;
         setNotes(updatedNotes);
       });
     }
@@ -134,17 +143,26 @@ const RoomDetail = () => {
     }
   };
 
-  // Debounced Notes Update
+  // Debounced Notes Update & Autosave
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (notes !== room?.sharedNotes && id) {
-        // Only emit if changed and valid
-        getSocket()?.emit("update-notes", { roomId: id, notes });
+    if (!id || !isInitialized.current) return;
+
+    if (isIncomingUpdate.current) {
+      isIncomingUpdate.current = false;
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      getSocket()?.emit("update-notes", { roomId: id, notes });
+      try {
+        await roomAPI.updateSharedNotes(id, notes);
+      } catch (error) {
+        console.error("Autosave failed:", error);
       }
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [notes, id, room]);
+  }, [notes, id]);
 
   const handleSaveNotes = async () => {
     try {
@@ -206,10 +224,6 @@ const RoomDetail = () => {
   if (loading || !room) {
     return <div>Loading...</div>;
   }
-
-  console.log("Room Data:", room);
-  console.log("Messages:", messages);
-  console.log("AI Messages:", aiMessages);
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -328,8 +342,8 @@ const RoomDetail = () => {
                         </div>
                         <div
                           className={`inline-block p-3 rounded-lg ${msg.sender._id === user?._id
-                              ? "bg-primary/20 text-primary-foreground"
-                              : "glass-card"
+                            ? "bg-primary/20 text-primary-foreground"
+                            : "glass-card"
                             }`}
                         >
                           {msg.message}
@@ -371,9 +385,9 @@ const RoomDetail = () => {
                   className="glass-card min-h-96 font-mono"
                 />
                 <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="outline" className="glass-card">
+                  {/* <Button variant="outline" className="glass-card">
                     Export
-                  </Button>
+                  </Button> */}
                   <Button
                     onClick={handleSaveNotes}
                     className="bg-primary hover:bg-primary/90"
