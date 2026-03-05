@@ -3,7 +3,7 @@ const { ForumPost } = require("../models");
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(
-  process.env.GOOGLE_API_KEY || "YOUR_API_KEY",
+  process.env.GOOGLE_API_KEY,
 );
 
 exports.aiChat = async (req, res) => {

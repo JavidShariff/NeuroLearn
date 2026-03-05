@@ -51,7 +51,7 @@ const RoomDetail = () => {
 
   useEffect(() => {
     if (id) {
-      startTime.current = Date.now(); 
+      startTime.current = Date.now();
       fetchRoomData();
       fetchMessages();
     }
@@ -79,35 +79,29 @@ const RoomDetail = () => {
     }
   };
 
-  // ... imports
-
-  // ... inside component
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      const socket = connectSocket(token);
+    const socket = getSocket();
 
-      if (id) {
-        socket.emit("join-room", id);
+    if (socket && id) {
+      socket.emit("join-room", id);
 
-        socket.on("receive-message", (newMessage: any) => {
-          setMessages((prev) => [...prev, newMessage]);
-        });
+      socket.on("receive-message", (newMessage: any) => {
+        setMessages((prev) => [...prev, newMessage]);
+      });
 
-        socket.on("notes-updated", (updatedNotes: string) => {
-          setNotes(updatedNotes);
-        });
-      }
+      socket.on("notes-updated", (updatedNotes: string) => {
+        setNotes(updatedNotes);
+      });
     }
 
     return () => {
-      if (id) {
-        getSocket()?.emit("leave-room", id);
-        getSocket()?.off("receive-message");
-        getSocket()?.off("notes-updated");
+      if (id && socket) {
+        socket.emit("leave-room", id);
+        socket.off("receive-message");
+        socket.off("notes-updated");
       }
     };
-  }, [id]);
+  }, [id, user]); // Depend on user to ensure socket is available
 
   // Refresh room data periodically to get updated member count
   useEffect(() => {
@@ -330,11 +324,10 @@ const RoomDetail = () => {
                           </span>
                         </div>
                         <div
-                          className={`inline-block p-3 rounded-lg ${
-                            msg.sender._id === user?._id
+                          className={`inline-block p-3 rounded-lg ${msg.sender._id === user?._id
                               ? "bg-primary/20 text-primary-foreground"
                               : "glass-card"
-                          }`}
+                            }`}
                         >
                           {msg.message}
                         </div>

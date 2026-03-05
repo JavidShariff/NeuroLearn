@@ -1,5 +1,6 @@
 const User = require('../models/user.model.js');
 const { UserStreak } = require('../models/userStreaks.model.js');
+const { UserAnalytics } = require('../models/userAnalytics.model.js');
 const jwt = require('jsonwebtoken');
 
 // Generate JWT Token

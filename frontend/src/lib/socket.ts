@@ -8,8 +8,11 @@ export const connectSocket = (token: string) => {
     if (socket?.connected) return socket;
 
     socket = io(SOCKET_URL, {
-        query: { token },
+        auth: { token },
         transports: ["websocket"],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
     });
 
     socket.on("connect", () => {
