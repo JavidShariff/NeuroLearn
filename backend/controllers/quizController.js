@@ -95,29 +95,82 @@ exports.generateQuizFromNotes = async (req, res) => {
       });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // Fetch User Analytics for Adaptive Logic
+    let performanceContext = "";
+    let targetDifficulty = difficulty || "medium";
 
-    const prompt = `Generate exactly ${questionCount} multiple-choice questions from the following study notes. 
-    
-Study Notes:
-${notes}
+    try {
+      const analytics = await UserAnalytics.findOne({ user: req.user.id });
+      if (analytics) {
+        // Try to find stats for this specific topic first
+        const topicStats = analytics.quizPerformance.find(
+          (p) =>
+            p.topic && topic && p.topic.toLowerCase() === topic.toLowerCase(),
+        );
 
-Return ONLY a valid JSON array (no markdown, no code blocks) in this EXACT format:
-[
-  {
-    "question": "Question text here?",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correctIndex": 0,
-    "explanation": "Brief explanation why this is correct"
-  }
-]
+        if (topicStats) {
+          performanceContext = `The student has an average score of ${topicStats.averageScore}% on the topic "${topic}" based on ${topicStats.totalAttempts} attempts. `;
 
-Requirements:
-- Exactly ${questionCount} questions
-- Each question must have exactly 4 options
-- correctIndex must be 0, 1, 2, or 3
-- Questions should test understanding, not just memorization
-- Return ONLY the JSON array, nothing else`;
+          // Adjust difficulty based on score if not explicitly set
+          if (!difficulty) {
+            if (topicStats.averageScore > 80) targetDifficulty = "hard";
+            else if (topicStats.averageScore < 40) targetDifficulty = "easy";
+            else targetDifficulty = "medium";
+          }
+        } else if (analytics.quizPerformance.length > 0) {
+          // Use overall average if topic stats are missing
+          const totalAvg =
+            analytics.quizPerformance.reduce(
+              (acc, curr) => acc + (curr.averageScore || 0),
+              0,
+            ) / analytics.quizPerformance.length;
+          performanceContext = `The student's overall average quiz performance is ${Math.round(totalAvg)}% across various topics. `;
+
+          if (!difficulty) {
+            if (totalAvg > 75) targetDifficulty = "hard";
+            else if (totalAvg < 50) targetDifficulty = "medium";
+            else targetDifficulty = "easy";
+          }
+        }
+      }
+    } catch (analyticsError) {
+      console.error(
+        "Failed to fetch analytics for adaptive quiz:",
+        analyticsError,
+      );
+      // Fallback to defaults
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `
+      Role: You are an expert tutor generating a personalized quiz for a student.
+      Context: ${performanceContext || "This is a new student."}
+      Target Difficulty: ${targetDifficulty}
+      
+      Task: Generate exactly ${questionCount} multiple-choice questions from the following study notes. 
+      
+      Study Notes:
+      ${notes}
+      
+      Return ONLY a valid JSON array (no markdown, no code blocks) in this EXACT format:
+      [
+        {
+          "question": "Question text here?",
+          "options": ["Option A", "Option B", "Option C", "Option D"],
+          "correctIndex": 0,
+          "explanation": "Brief explanation why this is correct"
+        }
+      ]
+      
+      Requirements:
+      - Exactly ${questionCount} questions
+      - Each question must have exactly 4 options
+      - correctIndex must be 0, 1, 2, or 3
+      - The difficulty level should be strictly ${targetDifficulty}.
+      - If the student is struggling (low average score), focus on clarifying core concepts. 
+      - If the student is excelling (high average score), include more challenging, application-based questions.
+      - Return ONLY the JSON array, nothing else.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -152,7 +205,7 @@ Requirements:
     const quiz = await Quiz.create({
       title: title || "AI Generated Quiz",
       topic: topic || "Custom",
-      difficulty: difficulty || "medium",
+      difficulty: targetDifficulty,
       questions: questions.slice(0, questionCount),
       creator: req.user.id,
       sourceNotes: notes,
