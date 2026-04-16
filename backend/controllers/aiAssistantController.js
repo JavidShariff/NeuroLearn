@@ -62,7 +62,7 @@ exports.summarizePost = async (req, res) => {
       });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = `
       Summarize the following forum post content in 2-3 sentences:
       Title: ${post.title}
@@ -82,5 +82,73 @@ exports.summarizePost = async (req, res) => {
     res
       .status(500)
       .json({ status: "error", message: "Failed to summarize post" });
+  }
+};
+
+exports.generateAdaptiveMCQ = async (req, res) => {
+  try {
+    const { roomTopic, currentLevel, recentHistory, masteryPercentage } =
+      req.body;
+
+    if (!roomTopic || !currentLevel) {
+      return res.status(400).json({
+        status: "error",
+        message: "roomTopic and currentLevel are required",
+      });
+    }
+
+    if (!process.env.GOOGLE_API_KEY) {
+      return res.status(200).json({
+        status: "success",
+        data: {
+          message: "AI MCQ generation is unavailable (Missing API Key).",
+        },
+      });
+    }
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: { responseMimeType: "application/json" },
+    });
+
+    const prompt = `
+      Role: You are an expert, encouraging tutor for a student studying "${roomTopic}".
+  
+      Student Progress Data:
+      - Current Level: ${currentLevel} (Beginner, Intermediate, or Advanced)
+      - Last 3 Results: ${recentHistory || "New Student"} (e.g., "Correct, Correct, Incorrect")
+      - Topic Mastery: ${masteryPercentage || 0}%
+
+      Instruction:
+      1. Evaluate the progress: If the student got the last few questions correct, increase the difficulty. If they missed the last one, stay at the same level or simplify the concept.
+      2. Language Style: Use very simple, clear language. Avoid complex terms unless explaining them.
+      3. Generate ONE multiple-choice question.
+
+      Output strictly in JSON format:
+      {
+        "newDifficulty": "Calculated difficulty level (Beginner, Intermediate, or Advanced)",
+        "question": "The question text",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "The exact string of the correct option",
+        "explanation": "A 1-sentence simple explanation of the answer",
+        "encouragement": "A short, friendly message based on their progress (e.g., 'You're getting the hang of this!')"
+      }
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    const parsedResponse = JSON.parse(text);
+
+    res.status(200).json({
+      status: "success",
+      data: parsedResponse,
+    });
+  } catch (error) {
+    console.error("AI Adaptive MCQ Error:", error);
+    res
+      .status(500)
+      .json({ status: "error", message: "Failed to generate adaptive MCQ" });
   }
 };

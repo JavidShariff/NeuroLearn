@@ -263,6 +263,13 @@ export const aiAPI = {
 
   summarizePost: (postId: string) =>
     api.post('/ai/summarize', { postId }),
+
+  generateAdaptiveMCQ: (data: {
+    roomTopic: string;
+    currentLevel: string;
+    recentHistory: string;
+    masteryPercentage: number;
+  }) => api.post('/ai/adaptive-mcq', data),
 };
 
 // Export default api instance

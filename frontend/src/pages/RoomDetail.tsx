@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { roomAPI, aiAPI, User } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import VideoCall from "@/components/VideoCall";
+import AdaptiveMCQ from "@/components/AdaptiveMCQ";
 import { connectSocket, getSocket, disconnectSocket } from "@/lib/socket";
 import { useRef } from "react";
 
@@ -399,41 +400,51 @@ const RoomDetail = () => {
             </TabsContent>
 
             <TabsContent value="ai">
-              <Card className="glass-card p-6">
-                <div className="space-y-4 mb-6 h-96 overflow-y-auto">
-                  {aiMessages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-                    >
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="glass-card p-6 h-full flex flex-col">
+                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <Bot className="h-5 w-5 text-primary" />
+                    AI Tutor Chat
+                  </h3>
+                  <div className="space-y-4 mb-6 flex-1 overflow-y-auto max-h-[400px] pr-2">
+                    {aiMessages.map((msg, index) => (
                       <div
-                        className={`flex-1 ${msg.role === "user" ? "text-right" : ""}`}
+                        key={index}
+                        className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
                       >
                         <div
-                          className={`inline-block p-3 rounded-lg ${msg.role === "user" ? "bg-primary/20" : "glass-card"}`}
+                          className={`flex-1 ${msg.role === "user" ? "text-right" : ""}`}
                         >
-                          {msg.content}
+                          <div
+                            className={`inline-block p-3 rounded-lg ${msg.role === "user" ? "bg-primary/20" : "glass-card border border-primary/10"}`}
+                          >
+                            {msg.content}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Ask AI anything..."
+                      value={aiQuery}
+                      onChange={(e) => setAiQuery(e.target.value)}
+                      onKeyPress={(e) => e.key === "Enter" && handleAiChat()}
+                      className="glass-card"
+                    />
+                    <Button
+                      onClick={handleAiChat}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </Card>
+
+                <div className="h-full">
+                  <AdaptiveMCQ roomTopic={room.topic} />
                 </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Ask AI anything..."
-                    value={aiQuery}
-                    onChange={(e) => setAiQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleAiChat()}
-                    className="glass-card"
-                  />
-                  <Button
-                    onClick={handleAiChat}
-                    className="bg-secondary hover:bg-secondary/90"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
+              </div>
             </TabsContent>
           </Tabs>
         </motion.div>
