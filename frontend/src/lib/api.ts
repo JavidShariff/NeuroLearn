@@ -266,9 +266,9 @@ export const aiAPI = {
 
   generateAdaptiveMCQ: (data: {
     roomTopic: string;
-    currentLevel: string;
     recentHistory: string;
     masteryPercentage: number;
+    askedQuestions: string[];
   }) => api.post('/ai/adaptive-mcq', data),
 };
 
