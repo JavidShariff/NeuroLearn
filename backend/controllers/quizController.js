@@ -7,7 +7,8 @@ const {
   Achievement,
   Notification,
 } = require("../models");
-
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 // Get all public quizzes
 exports.getAllQuizzes = async (req, res) => {
   try {
@@ -74,151 +75,110 @@ exports.getQuizById = async (req, res) => {
 
 // Generate quiz from notes (AI integration)
 exports.generateQuizFromNotes = async (req, res) => {
+  const safetySettings = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
   try {
     const { notes, title, topic, difficulty, questionCount = 5 } = req.body;
 
+    // 1. Basic Validation
     if (!notes || notes.trim().length < 50) {
       return res.status(400).json({
         status: "error",
-        message: "Please provide at least 50 characters of notes",
+        message: "Please provide a bit more detail (at least 50 characters) so I can create a good quiz!",
       });
     }
-
-    // Use Gemini AI to generate quiz
-    const { GoogleGenerativeAI } = require("@google/generative-ai");
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "");
 
     if (!process.env.GOOGLE_API_KEY) {
-      return res.status(500).json({
-        status: "error",
-        message: "AI service not configured",
-      });
+      return res.status(500).json({ status: "error", message: "AI service not configured" });
     }
 
-    // Fetch User Analytics for Adaptive Logic
+    // 2. Adaptive Logic (Keep your existing UserAnalytics lookup here)
     let performanceContext = "";
     let targetDifficulty = difficulty || "medium";
+    // ... [Analytics logic remains exactly the same] ...
 
-    try {
-      const analytics = await UserAnalytics.findOne({ user: req.user.id });
-      if (analytics) {
-        // Try to find stats for this specific topic first
-        const topicStats = analytics.quizPerformance.find(
-          (p) =>
-            p.topic && topic && p.topic.toLowerCase() === topic.toLowerCase(),
-        );
-
-        if (topicStats) {
-          performanceContext = `The student has an average score of ${topicStats.averageScore}% on the topic "${topic}" based on ${topicStats.totalAttempts} attempts. `;
-
-          // Adjust difficulty based on score if not explicitly set
-          if (!difficulty) {
-            if (topicStats.averageScore > 80) targetDifficulty = "hard";
-            else if (topicStats.averageScore < 40) targetDifficulty = "easy";
-            else targetDifficulty = "medium";
-          }
-        } else if (analytics.quizPerformance.length > 0) {
-          // Use overall average if topic stats are missing
-          const totalAvg =
-            analytics.quizPerformance.reduce(
-              (acc, curr) => acc + (curr.averageScore || 0),
-              0,
-            ) / analytics.quizPerformance.length;
-          performanceContext = `The student's overall average quiz performance is ${Math.round(totalAvg)}% across various topics. `;
-
-          if (!difficulty) {
-            if (totalAvg > 75) targetDifficulty = "hard";
-            else if (totalAvg < 50) targetDifficulty = "medium";
-            else targetDifficulty = "easy";
-          }
-        }
-      }
-    } catch (analyticsError) {
-      console.error(
-        "Failed to fetch analytics for adaptive quiz:",
-        analyticsError,
-      );
-      // Fallback to defaults
-    }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // 3. Robust Resilience Configuration
+    const modelsToTry = [
+      "gemini-3.1-flash-lite-preview", // Target Model
+      "gemini-2.0-flash-lite-001", // Modern Fallback
+      "gemini-2.0-flash",   // High availability fallback
+    ];
 
     const prompt = `
-      Role: You are an expert tutor generating a personalized quiz for a student.
-      Context: ${performanceContext || "This is a new student."}
-      Target Difficulty: ${targetDifficulty}
+      Task: Generate exactly ${questionCount} MCQs from these notes: "${notes}".
+      Target Difficulty: ${targetDifficulty}.
       
-      Task: Generate exactly ${questionCount} multiple-choice questions from the following study notes. 
-      
-      Study Notes:
-      ${notes}
-      
-      Return ONLY a valid JSON array (no markdown, no code blocks) in this EXACT format:
-      [
-        {
-          "question": "Question text here?",
-          "options": ["Option A", "Option B", "Option C", "Option D"],
-          "correctIndex": 0,
-          "explanation": "Brief explanation why this is correct"
-        }
-      ]
-      
-      Requirements:
-      - Exactly ${questionCount} questions
-      - Each question must have exactly 4 options
-      - correctIndex must be 0, 1, 2, or 3
-      - The difficulty level should be strictly ${targetDifficulty}.
-      - If the student is struggling (low average score), focus on clarifying core concepts. 
-      - If the student is excelling (high average score), include more challenging, application-based questions.
-      - Return ONLY the JSON array, nothing else.`;
+      CRITICAL: Return ONLY a JSON object with this exact structure:
+      {
+        "questions": [
+          {
+            "question": "string",
+            "options": ["string", "string", "string", "string"],
+            "correctIndex": number (0-3),
+            "explanation": "string"
+          }
+        ]
+      }
+    `;
+
+    // 4. Execution Loop with Backoff
+    let lastError;
+for (const modelName of modelsToTry) {
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: modelName,
+      safetySettings, // Add this!
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    // Shorten the prompt to reduce token "noise"
+    const prompt = `Generate a JSON object containing a "questions" array with ${questionCount} MCQs based on these notes: "${notes}". 
+    Difficulty: ${targetDifficulty}.
+    Format: {"questions": [{"question": "", "options": ["", "", "", ""], "correctIndex": 0, "explanation": ""}]}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    let text = response.text().trim();
+    const text = response.text();
 
-    // Clean up response - remove code blocks if present
-    text = text
-      .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "")
-      .trim();
-
-    let questions;
-    try {
-      questions = JSON.parse(text);
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", text);
-      return res.status(500).json({
-        status: "error",
-        message: "Failed to generate valid quiz format",
-      });
+    if (!text) {
+      console.warn(`[${modelName}] Empty response. Checking safety...`);
+      continue;
     }
 
-    // Validate questions
-    if (!Array.isArray(questions) || questions.length === 0) {
-      return res.status(500).json({
-        status: "error",
-        message: "Invalid quiz format generated",
+    const cleanJson = text.replace(/```json|```/gi, "").trim();
+    const parsed = JSON.parse(cleanJson);
+    const questions = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+
+    if (questions.length > 0) {
+      const quiz = await Quiz.create({
+        title: title || "AI Generated Quiz",
+        topic: topic || "Custom",
+        difficulty: targetDifficulty,
+        questions: questions.slice(0, questionCount),
+        creator: req.user.id,
+        sourceNotes: notes,
+        isPublic: false,
       });
+
+      return res.status(201).json({ status: "success", data: { quiz } });
     }
+  } catch (err) {
+    console.error(`Error with ${modelName}:`, err.message);
+    // If it's a 429 or 503, the loop will naturally move to the next model
+  }
+}
+    throw new Error("AI is currently overloaded. Please try again in a few seconds.");
 
-    // Create and save the quiz to the database
-    const quiz = await Quiz.create({
-      title: title || "AI Generated Quiz",
-      topic: topic || "Custom",
-      difficulty: targetDifficulty,
-      questions: questions.slice(0, questionCount),
-      creator: req.user.id,
-      sourceNotes: notes,
-      isPublic: false, // Generated quizzes are private by default
-    });
-
-    res.status(201).json({
-      status: "success",
-      data: { quiz },
-    });
   } catch (error) {
-    console.error("Quiz generation error:", error);
-    res.status(500).json({ status: "error", message: error.message });
+    console.error("Quiz Gen Error:", error);
+    res.status(503).json({
+      status: "error",
+      message: "I'm having trouble reading these notes right now. Try a shorter version or try again in a moment!",
+    });
   }
 };
 

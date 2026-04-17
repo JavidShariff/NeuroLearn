@@ -4,83 +4,57 @@ const { ForumPost } = require("../models");
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-exports.aiChat = async (req, res) => {
-  try {
-    const { message, roomTopic } = req.body;
+const LOW_TRAFFIC_MODELS = [
+  "gemini-3.1-flash-lite-preview",
+  "gemini-2.0-flash-lite-001",
+  "gemini-1.5-flash"
+];
 
-    // For safety, if no API key is present, return a mock response or error
-    if (!process.env.GOOGLE_API_KEY) {
+// 2. Updated aiChat with the same resilience
+exports.aiChat = async (req, res) => {
+  const { message, roomTopic } = req.body;
+  if (!process.env.GOOGLE_API_KEY) return handleMissingKey(res);
+
+  const prompt = `Study assistant for "${roomTopic}". User: "${message}". Concise & encouraging.`;
+
+  for (const modelName of LOW_TRAFFIC_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
       return res.status(200).json({
         status: "success",
-        data: {
-          message:
-            "I'm sorry, I cannot process your request right now because my API key is missing. Please ask the administrator to configure it.",
-        },
+        data: { message: result.response.text() }
       });
+    } catch (err) {
+      if (err.status === 503 || err.status === 429) continue;
+      break;
     }
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    const prompt = `
-      You are a helpful study assistant in a study room about "${roomTopic || "General Studies"}".
-      User says: "${message}"
-      Provide a helpful, concise, and encouraging response relevant to the study topic.
-    `;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    res.status(200).json({
-      status: "success",
-      data: { message: text },
-    });
-  } catch (error) {
-    console.error("AI Chat Error:", error);
-    res
-      .status(500)
-      .json({ status: "error", message: "Failed to generate AI response" });
   }
+  res.status(503).json({ status: "error", message: "AI Chat is currently busy." });
 };
 
+// 3. Updated summarizePost 
 exports.summarizePost = async (req, res) => {
-  try {
-    const { postId } = req.body;
-    const post = await ForumPost.findById(postId);
+  const { postId } = req.body;
+  const post = await ForumPost.findById(postId);
+  if (!post) return res.status(404).json({ error: "Post not found" });
 
-    if (!post) {
-      return res
-        .status(404)
-        .json({ status: "error", message: "Post not found" });
-    }
+  const prompt = `Summarize in 2 sentences: ${post.title} - ${post.content}`;
 
-    if (!process.env.GOOGLE_API_KEY) {
+  for (const modelName of LOW_TRAFFIC_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
       return res.status(200).json({
         status: "success",
-        data: { summary: "AI summarization is unavailable (Missing API Key)." },
+        data: { summary: result.response.text() }
       });
+    } catch (err) {
+      if (err.status === 503 || err.status === 429) continue;
+      break;
     }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const prompt = `
-      Summarize the following forum post content in 2-3 sentences:
-      Title: ${post.title}
-      Content: ${post.content}
-    `;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    res.status(200).json({
-      status: "success",
-      data: { summary: text },
-    });
-  } catch (error) {
-    console.error("AI Summarize Error:", error);
-    res
-      .status(500)
-      .json({ status: "error", message: "Failed to summarize post" });
   }
+  res.status(503).json({ status: "error", message: "Summarizer is busy." });
 };
 
 exports.generateAdaptiveMCQ = async (req, res) => {
