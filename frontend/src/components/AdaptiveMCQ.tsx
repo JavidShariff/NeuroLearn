@@ -103,7 +103,7 @@ const AdaptiveMCQ: React.FC<AdaptiveMCQProps> = ({ roomTopic }) => {
         <div className="bg-primary/10 p-4 rounded-full">
           <Sparkles className="h-8 w-8 text-primary" />
         </div>
-        <h3 className="text-xl font-bold">Antigravity AI Quiz</h3>
+        <h3 className="text-xl font-bold">AI Quiz</h3>
         <p className="text-muted-foreground max-w-sm">
           Master {roomTopic} with 9 adaptive challenges. Unlock Intermediate and
           Advanced levels as you prove your reasoning.
