@@ -141,7 +141,7 @@ exports.generateQuizFromNotes = async (req, res) => {
       // Fallback to defaults
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `
       Role: You are an expert tutor generating a personalized quiz for a student.
